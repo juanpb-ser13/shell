@@ -1,0 +1,86 @@
+// -----------------------------------------------------------------------
+/* devuelve puntero a un nodo con sus valores inicializados,
+devuelve NULL si no pudo realizarse la reserva de memoria*/
+job * new_job(pid_t pid, const char * command, enum job_state state)
+{
+	job * aux;
+	aux=(job *) malloc(sizeof(job));
+	aux->pgid=pid;
+	aux->state=state;
+	aux->command=strdup(command);
+	aux->next=NULL;
+	return aux;
+}
+
+// -----------------------------------------------------------------------
+/* inserta elemento en la cabeza de la lista */
+void add_job (job * list, job * item)
+{
+	job * aux=list->next;
+	list->next=item;
+	item->next=aux;
+	list->pgid++;
+
+}
+
+// -----------------------------------------------------------------------
+/* elimina el elemento indicado de la lista
+devuelve 0 si no pudo realizarse con exito */
+int delete_job(job * list, job * item)
+{
+	job * aux=list;
+	while(aux->next!= NULL && aux->next!= item) aux=aux->next;
+	if(aux->next)
+	{
+		aux->next=item->next;
+		free(item->command);
+		free(item);
+		list->pgid--;
+		return 1;
+	}
+	else
+		return 0;
+
+}
+// -----------------------------------------------------------------------
+/* busca y devuelve un elemento de la lista cuyo pid coincida con el indicado,
+devuelve NULL si no lo encuentra */
+job * get_item_bypid  (job * list, pid_t pid)
+{
+	job * aux=list;
+	while(aux->next!= NULL && aux->next->pgid != pid) aux=aux->next;
+	return aux->next;
+}
+// -----------------------------------------------------------------------
+job * get_item_bypos( job * list, int n)
+{
+	job * aux=list;
+	if(n<1 || n>list->pgid) return NULL;
+	n--;
+	while(aux->next!= NULL && n) { aux=aux->next; n--;}
+	return aux->next;
+}
+
+// -----------------------------------------------------------------------
+/*imprime una linea en el terminal con los datos del elemento: pid, nombre ... */
+void print_item(job * item)
+{
+
+	printf("pid: %d, command: %s, state: %s\n", item->pgid, item->command, state_strings[item->state]);
+}
+
+// -----------------------------------------------------------------------
+/*recorre la lista y le aplica la funcion pintar a cada elemento */
+void print_list(job * list, void (*print)(job *))
+{
+	int n=1;
+	job * aux=list;
+	printf("Contents of %s:\n",list->command);
+	while(aux->next!= NULL)
+	{
+		printf(" [%d] ",n);
+		print(aux->next);
+		n++;
+		aux=aux->next;
+	}
+}
