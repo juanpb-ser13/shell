@@ -7,6 +7,8 @@ Grados I. Informatica, Computadores & Software
 Dept. Arquitectura de Computadores - UMA
 
 Some code adapted from "Fundamentos de Sistemas Operativos", Silberschatz et al.
+Alumno: Juan Palma Borda
+DNI : 77180719X
 --------------------------------------------------------*/
 
 #ifndef _JOB_CONTROL_H
@@ -19,6 +21,14 @@ Some code adapted from "Fundamentos de Sistemas Operativos", Silberschatz et al.
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+//------------ Colores--------------------------------------------------
+#define ROJO "\x1b[31;1;1m"
+#define NEGRO "\x1b[0m"
+#define VERDE "\x1b[32;1;1m"
+#define AZUL "\x1b[34;1;1m"
+#define CIAN "\x1b[36;1;1m"
+#define MARRON "\x1b[33;1;1m"
+#define PURPURA "\x1b[35;1;1m"
 
 // ----------- ENUMERATIONS ---------------------------------------------
 enum status { SUSPENDED, SIGNALED, EXITED};
@@ -33,7 +43,6 @@ typedef struct job_
 	pid_t pgid; /* group id = process lider id */
 	char * command; /* program name */
 	enum job_state state;
-	//char * estado;
 	Listatrabajos next; /* next job in the list */
 }job;
 
@@ -47,11 +56,7 @@ void crear(Listatrabajos* l);
 void insert(Listatrabajos* l, pid_t pid, char* command, enum job_state state);
 int delete_job(Listatrabajos* l, pid_t pid);
 void show(Listatrabajos l);
-// job * new_job(pid_t pid, const char * command, enum job_state state);
-// void add_job (job * list, job * item);
-// int delete_job(job * list, job * item);
-// job * get_item_bypid  (job * list, pid_t pid);
-// job * get_item_bypos( job * list, int n);
+Listatrabajos buscarnumero(Listatrabajos l, int i);
 
 enum status analyze_status(int status, int *info);
 

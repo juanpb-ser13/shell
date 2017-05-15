@@ -11,7 +11,8 @@ To compile and run the program:
    $ gcc Shell_project.c job_control.c -o Shell
    $ ./Shell
 	(then type ^D to exit program)
-
+Alumno: Juan Palma Borda
+DNI : 77180719X
 **/
 
 #include "job_control.h"   // remember to compile with module job_control.c
@@ -21,26 +22,39 @@ Listatrabajos listaprocesos;
 // -----------------------------------------------------------------------
 //                            Manejador
 // -----------------------------------------------------------------------
-//CAMBIAR COSAS
 void manejador(int numero){
 	Listatrabajos k=listaprocesos;
-	int status;
+	int status=0;
 	int info;
 	enum status status_res;
 	pid_t hijo;
+	block_SIGCHLD();
 	while(k!=NULL){
 		//algo con cada proceso
-		hijo=waitpid(k->pgid,&status, WNOHANG|WUNTRACED);
+		hijo=waitpid(k->pgid,&status, WNOHANG|WUNTRACED|WCONTINUED);
 		status_res=analyze_status(status,&info);
-		if(hijo!=0&&status_res!=0&&k->state==BACKGROUND){
-			delete_job(&listaprocesos,hijo);
-		}else if(hijo!=0&&k->state==BACKGROUND){
-			k->state=STOPPED;
-		}else if(status_res==0){
-			delete_job(&listaprocesos,hijo);
+		
+		if(k->state==BACKGROUND){
+			if(WIFCONTINUED(status)){
+				k->state=BACKGROUND;
+			}else if(hijo!=0&&status_res!=0){
+				delete_job(&listaprocesos,hijo);
+			}else if(hijo!=0){
+				k->state=STOPPED;
+			}	
+		}else{
+			if(WIFCONTINUED(status)){
+				k->state=BACKGROUND;
+			}else{
+				if(status_res==0){
+					delete_job(&listaprocesos,hijo);
+				}
+			}
+			
 		}
 		k=k->next;
 	}
+	unblock_SIGCHLD();
 }
 // -----------------------------------------------------------------------
 //                            Funciones internas
@@ -53,7 +67,7 @@ void cd(char* args[]){
 		p=chdir(args[1]);
 	}
 	if(p!=0){
-		printf("Error, directory not found: %s \n", args[1]);
+		printf(ROJO"Error, directory not found: %s \n"NEGRO, args[1]);
 	}
 }
 void jobs(){
@@ -77,26 +91,22 @@ void fg(char* args[]){
 			set_terminal(getpid());
 			status_res=analyze_status(status, &info);
 			if(info==255){
-				printf("Foreground pid: %d, command: %s, %s, info: %d\n", p, l, "Error", info);
+				printf(CIAN"Foreground pid: %d, command: %s, %s, info: %d\n"NEGRO, p, l, "Error", info);
 			}else {
 				if(status_res==0){
 					insert(&listaprocesos,p,l,STOPPED);
 				}
-					printf("Foreground pid: %d, command: %s, %s, info: %d\n", p, l, status_strings[status_res], info);
+					printf(CIAN"Foreground pid: %d, command: %s, %s, info: %d\n"NEGRO, p, l, status_strings[status_res], info);
 			}
+			free(l);
 		}else{
-					printf("Error no existen procesos en background o suspendidos");
+					printf(ROJO"Error no existen procesos en background o suspendidos"NEGRO);
 		}
 	}else{
 		int i=0;
 		i=atoi(args[1]);
 		if(i!=0){
-			Listatrabajos j=listaprocesos;
-			i--;
-			while(j!=NULL&&i>0){
-				j=j->next;
-				i--;
-			}
+			Listatrabajos j=buscarnumero(listaprocesos, i);
 			if(j!=NULL){
 				killpg(j->pgid,SIGCONT);
 				pid_t p=j->pgid;
@@ -108,49 +118,46 @@ void fg(char* args[]){
 				set_terminal(getpid());
 				status_res=analyze_status(status, &info);
 				if(info==255){
-					printf("Foreground pid: %d, command: %s, %s, info: %d\n", p, l, "Error", info);
+					printf(CIAN"Foreground pid: %d, command: %s, %s, info: %d\n"NEGRO, p, l, "Error", info);
 				}else {
 					if(status_res==0){
 						insert(&listaprocesos,p,l,STOPPED);
 					}
-						printf("Foreground pid: %d, command: %s, %s, info: %d\n",p, l, status_strings[status_res], info);
+						printf(CIAN"Foreground pid: %d, command: %s, %s, info: %d\n"NEGRO,p, l, status_strings[status_res], info);
 				}
+					free(l);
 			}else{
-				printf("Error no existe ese proceso");
+				printf(ROJO"Error no existe ese proceso"NEGRO);
 			}
 		}else{
-				printf("Error no existe ese proceso");
+				printf(ROJO"Error no existe ese proceso"NEGRO);
 		}
 	}
 }
 void bg(char* args[]){
 	if(args[1]==NULL){
-		if(listaprocesos!=NULL){
-			killpg(listaprocesos->pgid,SIGCONT);
-			listaprocesos->state=BACKGROUND;
-			printf("Background job running... pid: %d, command: %s\n", listaprocesos->pgid, listaprocesos->command);
+		Listatrabajos cambio=buscarnumero(listaprocesos,1);
+		if(cambio==NULL){
+			printf(ROJO"Error no existen procesos en background o suspendidos"NEGRO);
 		}else{
-					printf("Error no existen procesos en background o suspendidos");
+			killpg(cambio->pgid,SIGCONT);
+			cambio->state=BACKGROUND;
+			printf(CIAN"Background job running... pid: %d, command: %s\n"NEGRO, cambio->pgid, cambio->command);
 		}
 	}else{
 		int i=0;
 		i=atoi(args[1]);
 		if(i!=0){
-			Listatrabajos j=listaprocesos;
-			i--;
-			while(j!=NULL&&i>0){
-				j=j->next;
-				i--;
-			}
-			if(j!=NULL){
-				killpg(j->pgid,SIGCONT);
-				j->state=BACKGROUND;
-				printf("Background job running... pid: %d, command: %s\n", j->pgid, j->command);
+			Listatrabajos cambio=buscarnumero(listaprocesos,i);
+			if(cambio!=NULL){
+				killpg(cambio->pgid,SIGCONT);
+				cambio->state=BACKGROUND;
+				printf(CIAN"Background job running... pid: %d, command: %s\n"NEGRO, cambio->pgid, cambio->command);
 			}else{
-				printf("Error no existe ese proceso");
+				printf(ROJO"Error no existe ese proceso"NEGRO);
 			}
 		}else{
-				printf("Error no existe ese proceso");
+				printf(ROJO"Error parametro no valido"NEGRO);
 		}
 	}
 }
@@ -174,7 +181,7 @@ int main(void){
 	signal(SIGCHLD,manejador);
 	while (1)   /* Program terminates normally inside get_command() after ^D is typed*/
 	{
-		printf("%s:", getcwd(buffer,512));
+		printf(VERDE"%s:"NEGRO, getcwd(buffer,512));
 		fflush(stdout);
 		get_command(inputBuffer, MAX_LINE, args, &background);  /* get next command */
 
@@ -202,7 +209,7 @@ int main(void){
 					restore_terminal_signals();
 					new_process_group(getpid());
 					execvp(args[0], args);
-					printf("Error, comand not found: %s \n", args[0]);
+					printf(ROJO"Error, comand not found: %s \n"NEGRO, args[0]);
 					exit(-1);
 				}else{
 					if(background==0){
@@ -211,17 +218,17 @@ int main(void){
 						set_terminal(getpid());
 						status_res=analyze_status(status, &info);
 						if(info==255){
-							printf("Foreground pid: %d, command: %s, %s, info: %d\n", pid_fork, args[0], "Error", info);
+							printf(CIAN"Foreground pid: %d, command: %s, %s, info: %d\n"NEGRO, pid_fork, args[0], "Error", info);
 						}else {
 							if(status_res==0){
 								insert(&listaprocesos,pid_fork,args[0],STOPPED);
 							}
-								printf("Foreground pid: %d, command: %s, %s, info: %d\n", pid_fork, args[0], status_strings[status_res], info);
+								printf(CIAN"Foreground pid: %d, command: %s, %s, info: %d\n"NEGRO, pid_fork, args[0], status_strings[status_res], info);
 						}
 						continue;
 					}else{
 						insert(&listaprocesos,pid_fork,args[0],BACKGROUND);
-						printf("Background job running... pid: %d, command: %s\n", pid_fork, args[0]);
+						printf(CIAN"Background job running... pid: %d, command: %s\n"NEGRO, pid_fork, args[0]);
 						continue;
 					}
 				}

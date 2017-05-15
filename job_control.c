@@ -7,6 +7,8 @@ Grados I. Informatica, Computadores & Software
 Dept. Arquitectura de Computadores - UMA
 
 Some code adapted from "Fundamentos de Sistemas Operativos", Silberschatz et al.
+Alumno: Juan Palma Borda
+DNI : 77180719X
 --------------------------------------------------------*/
 
 #include "job_control.h"
@@ -37,11 +39,11 @@ void get_command(char inputBuffer[], int size, char *args[],int *background)
 	start = -1;
 	if (length == 0)
 	{
-		printf("\nBye\n");
+		printf(ROJO"\nBye\n"NEGRO);
 		exit(0);            /* ^d was entered, end of user command stream */
 	}
 	if (length < 0){
-		perror("error reading the command");
+		perror(ROJO"error reading the command"NEGRO);
 		exit(-1);           /* terminate with error code of -1 */
 	}
 
@@ -125,16 +127,34 @@ int delete_job(Listatrabajos* l, pid_t pid){
 }
 void show(Listatrabajos l){
 	if(l==NULL){
-		printf("No hay procesos en background o suspendidos\n");
+		printf(ROJO"No hay procesos en background o suspendidos\n"NEGRO);
 	}
 	int i=1;
+	printf(PURPURA);
 	while(l!=NULL){
 		printf("%d  pid: %d, command: %s, state: %s\n",i, l->pgid, l->command, state_strings[l->state]);
 		i++;
 		l=l->next;
 	}
+	printf(NEGRO);
 }
-
+Listatrabajos buscarnumero(Listatrabajos l, int i){
+	if(i<0){
+		return NULL;
+	}else{
+		Listatrabajos ptr=l;
+		i--;
+		while(ptr!=NULL&&i>0){
+			ptr=ptr->next;
+			i--;
+		}
+		if(i>0){
+			return NULL;
+		}else{
+			return ptr;
+		}
+	}
+}
 // -----------------------------------------------------------------------
 /* interpretar valor estatus que devuelve wait */
 enum status analyze_status(int status, int *info)
