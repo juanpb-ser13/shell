@@ -23,7 +23,7 @@ DNI : 77180719X
 //  null-terminated string.
 // -----------------------------------------------------------------------
 
-void get_command(char inputBuffer[], int size, char *args[],int *background)
+void get_command(char inputBuffer[], int size, char *args[],int *background,Listatrabajos j)
 {
 	int length, /* # of characters in the command line */
 		i,      /* loop index for accessing inputBuffer array */
@@ -39,6 +39,15 @@ void get_command(char inputBuffer[], int size, char *args[],int *background)
 	start = -1;
 	if (length == 0)
 	{
+		while(j!=NULL){
+			Listatrabajos k=j;
+			killpg(j->pgid,SIGTERM);
+			delete_job(&j,j->pgid);
+			if(k->state==SUSPENDED){
+			killpg(k->pgid,SIGCONT);
+			}
+			j=k->next;
+		}
 		printf(ROJO"\nBye\n"NEGRO);
 		exit(0);            /* ^d was entered, end of user command stream */
 	}

@@ -17,6 +17,7 @@ DNI : 77180719X
 
 #include "job_control.h"   // remember to compile with module job_control.c
 #include <string.h>
+#include <pthread.h>
 #define MAX_LINE 256 /* 256 chars per line, per command, should be enough. */
 Listatrabajos listaprocesos;
 // -----------------------------------------------------------------------
@@ -33,7 +34,7 @@ void manejador(int numero){
 		//algo con cada proceso
 		hijo=waitpid(k->pgid,&status, WNOHANG|WUNTRACED|WCONTINUED);
 		status_res=analyze_status(status,&info);
-		
+
 		if(k->state==BACKGROUND){
 			if(WIFCONTINUED(status)){
 				k->state=BACKGROUND;
@@ -41,7 +42,7 @@ void manejador(int numero){
 				delete_job(&listaprocesos,hijo);
 			}else if(hijo!=0){
 				k->state=STOPPED;
-			}	
+			}
 		}else{
 			if(WIFCONTINUED(status)){
 				k->state=BACKGROUND;
@@ -50,7 +51,7 @@ void manejador(int numero){
 					delete_job(&listaprocesos,hijo);
 				}
 			}
-			
+
 		}
 		k=k->next;
 	}
@@ -75,6 +76,7 @@ void jobs(){
 	show(listaprocesos);
 	unblock_SIGCHLD();
 }
+
 void fg(char* args[]){
 	int status;
 	enum status status_res;
@@ -157,9 +159,27 @@ void bg(char* args[]){
 				printf(ROJO"Error no existe ese proceso"NEGRO);
 			}
 		}else{
-				printf(ROJO"Error parametro no valido"NEGRO);
+				printf(ROJO"Error parametro no valido\n"NEGRO);
 		}
 	}
+}
+int timeout(char* args[]){
+	int i=0;
+	i=atoi(args[1]);
+	if(i!=0){
+		return 1;
+	}else{
+		printf(ROJO"Error parametro no valido\n"NEGRO);
+		return 0;
+	}
+}
+void *do_work(void *p){
+	arguments* h=p;
+	sleep((unsigned int)(*h)->i);
+	killpg((*h)->pid, SIGTERM);
+	killpg((*h)->pid, SIGCONT);
+	free((void*)*h);
+	pthread_exit(NULL);
 }
 // -----------------------------------------------------------------------
 //                            MAIN
@@ -175,6 +195,7 @@ int main(void){
 	enum status status_res; /* status processed by analyze_status() */
 	int info;				/* info processed by analyze_status() */
 	char buffer[512];
+	int numero=0;
 	//crear funciones
 	crear(&listaprocesos);
 	ignore_terminal_signals();
@@ -183,7 +204,7 @@ int main(void){
 	{
 		printf(VERDE"%s:"NEGRO, getcwd(buffer,512));
 		fflush(stdout);
-		get_command(inputBuffer, MAX_LINE, args, &background);  /* get next command */
+		get_command(inputBuffer, MAX_LINE, args, &background, listaprocesos);  /* get next command */
 
 		if(args[0]==NULL) continue;   // if empty command
 
@@ -204,31 +225,57 @@ int main(void){
 				bg(args);
 				continue;
 			}
+			int y=0;
+			if(0==strcmp(args[0],"timeout")){
+				y=timeout(args);
+				if(!y){
+					continue;
+				}
+				numero=2;
+			}
 			pid_fork=fork();
 				if(pid_fork==0){
+					char *prog[MAX_LINE/2];
+					int i=0;
+					while(args[numero]!=NULL){
+						prog[i]=args[numero];
+						numero++;
+						i++;
+					}
+					prog[i]=NULL;
 					restore_terminal_signals();
 					new_process_group(getpid());
-					execvp(args[0], args);
-					printf(ROJO"Error, comand not found: %s \n"NEGRO, args[0]);
+					execvp(prog[0], prog);
+					printf(ROJO"Error, comand not found: %s \n"NEGRO, args[numero]);
 					exit(-1);
 				}else{
+					if(y){
+						arguments h=(arguments)malloc(sizeof(struct arg));
+						h->pid=pid_fork;
+						h->i=atoi(args[1]);
+						int rc;
+						pthread_t tid;
+						rc=pthread_create(&tid, NULL,do_work,(void*)(&h));
+					}
 					if(background==0){
 						set_terminal(pid_fork);
 						waitpid(pid_fork, &status, WUNTRACED);
 						set_terminal(getpid());
 						status_res=analyze_status(status, &info);
 						if(info==255){
-							printf(CIAN"Foreground pid: %d, command: %s, %s, info: %d\n"NEGRO, pid_fork, args[0], "Error", info);
+							printf(CIAN"Foreground pid: %d, command: %s, %s, info: %d\n"NEGRO, pid_fork, args[numero], "Error", info);
 						}else {
 							if(status_res==0){
-								insert(&listaprocesos,pid_fork,args[0],STOPPED);
+								insert(&listaprocesos,pid_fork,args[numero],STOPPED);
 							}
-								printf(CIAN"Foreground pid: %d, command: %s, %s, info: %d\n"NEGRO, pid_fork, args[0], status_strings[status_res], info);
+								printf(CIAN"Foreground pid: %d, command: %s, %s, info: %d\n"NEGRO, pid_fork, args[numero], status_strings[status_res], info);
 						}
+						numero=0;
 						continue;
 					}else{
-						insert(&listaprocesos,pid_fork,args[0],BACKGROUND);
-						printf(CIAN"Background job running... pid: %d, command: %s\n"NEGRO, pid_fork, args[0]);
+						insert(&listaprocesos,pid_fork,args[numero],BACKGROUND);
+						printf(CIAN"Background job running... pid: %d, command: %s\n"NEGRO, pid_fork, args[numero]);
+						numero=0;
 						continue;
 					}
 				}

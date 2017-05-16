@@ -45,12 +45,17 @@ typedef struct job_
 	enum job_state state;
 	Listatrabajos next; /* next job in the list */
 }job;
-
+//-------------------ARGUMENTOS-------------------------------------------
+typedef struct arg* arguments;
+typedef struct arg{
+	pid_t pid;
+	int i;
+}argu;
 // -----------------------------------------------------------------------
 //      PUBLIC FUNCTIONS
 // -----------------------------------------------------------------------
 
-void get_command(char inputBuffer[], int size, char *args[],int *background);
+void get_command(char inputBuffer[], int size, char *args[],int *background,Listatrabajos j);
 
 void crear(Listatrabajos* l);
 void insert(Listatrabajos* l, pid_t pid, char* command, enum job_state state);
