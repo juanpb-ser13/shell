@@ -21,6 +21,7 @@ DNI : 77180719X
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#define MAX_LINE 256 
 //------------ Colores--------------------------------------------------
 #define ROJO "\x1b[31;1;1m"
 #define NEGRO "\x1b[0m"
@@ -42,7 +43,9 @@ typedef struct job_
 {
 	pid_t pgid; /* group id = process lider id */
 	char * command; /* program name */
+	char * all[MAX_LINE/2];
 	enum job_state state;
+	int respawn;
 	Listatrabajos next; /* next job in the list */
 }job;
 //-------------------ARGUMENTOS-------------------------------------------
@@ -58,7 +61,7 @@ typedef struct arg{
 void get_command(char inputBuffer[], int size, char *args[],int *background,Listatrabajos j);
 
 void crear(Listatrabajos* l);
-void insert(Listatrabajos* l, pid_t pid, char* command, enum job_state state);
+void insert(Listatrabajos* l, pid_t pid, char* command, enum job_state state, int resp, char* args[]);
 int delete_job(Listatrabajos* l, pid_t pid);
 void show(Listatrabajos l);
 Listatrabajos buscarnumero(Listatrabajos l, int i);

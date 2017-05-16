@@ -111,10 +111,18 @@ void crear(Listatrabajos* l){
 //-----------------------------------------------------------------------
 //                          NUEVAS FUNCIONES LISTAS
 //-----------------------------------------------------------------------
-void insert(Listatrabajos* l, pid_t pid, char* command, enum job_state state){
+void insert(Listatrabajos* l, pid_t pid, char* command, enum job_state state, int resp, char* args[]){
 	Listatrabajos p=(Listatrabajos)malloc(sizeof(struct job_));
 	p->pgid=pid;
 	p->state=state;
+	p->respawn=resp;
+	int i=0;
+	while(args[i]!=NULL){
+		(p->all)[i]=(char*)malloc(sizeof(strlen(args[i])));
+		strcpy((p->all)[i],args[i]);
+		i++;
+	}
+	(p->all)[i]=NULL;
 	p->command=(char*)malloc(sizeof(strlen(command)));
 	strcpy((p->command),command);
 	p->next=*l;
@@ -127,6 +135,11 @@ int delete_job(Listatrabajos* l, pid_t pid){
 	if((*l)->pgid==pid){
 			Listatrabajos n=(*l)->next;
 			free((*l)->command);
+			int i=0;
+			while(((*l)->all)[i]!=NULL){
+				free(((*l)->all)[i]);
+				i++;
+			}
 			free(*l);
 			*l=n;
 			return 1;
